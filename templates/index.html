@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hospital WaitTime Analytics | Sampling & Statistical Estimation Dashboard</title>
+  <meta name="description" content="College Project LG-6: Reducing Hospital Waiting Time Using Sampling and Statistical Estimation based on 2022 CDC/NCHS NHAMCS Emergency Department Data.">
+  
+  <!-- Modern Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons & Plotly.js CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+
+  <!-- Custom Hospital Analytics Design System -->
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="dashboard-body">
+
+  <!-- TOP APP BAR -->
+  <header class="top-nav">
+    <div class="nav-brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-hospital-user"></i>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">Hospital WaitTime Analytics</div>
+        <div class="brand-subtitle">Sampling & Statistical Estimation Dashboard</div>
+      </div>
+    </div>
+    
+    <div class="nav-badges">
+      <span class="badge badge-primary">
+        <i class="fa-solid fa-database"></i> NHAMCS 2022 • Emergency Department
+      </span>
+      <span class="badge badge-outline">
+        <i class="fa-solid fa-graduation-cap"></i> Project LG-6
+      </span>
+    </div>
+
+    <div class="nav-actions">
+      <button class="btn btn-secondary btn-sm" id="btn-open-sidebar" title="Toggle Controls Sidebar">
+        <i class="fa-solid fa-sliders"></i> <span>Global Controls</span>
+      </button>
+      <button class="btn btn-outline btn-sm" id="btn-project-info" title="Project Details">
+        <i class="fa-solid fa-circle-info"></i> <span>Project Info</span>
+      </button>
+      <a href="#methodology" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-diagram-project"></i> <span>Methodology</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <div class="app-container">
+    
+    <!-- COLLAPSIBLE SIDEBAR / CONTROLS PANEL -->
+    <aside class="sidebar" id="global-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          <i class="fa-solid fa-sliders text-teal"></i> Global Control Panel
+        </div>
+        <button class="close-sidebar-btn" id="btn-close-sidebar" aria-label="Close Sidebar">&times;</button>
+      </div>
+
+      <div class="sidebar-content">
+        <!-- Section 16: Interactive Controls -->
+        <div class="control-group">
+          <label class="control-label" for="ctrl-method">
+            <i class="fa-solid fa-filter"></i> Sampling Method
+          </label>
+          <select id="ctrl-method" class="form-select">
+            <option value="baseline" selected>Notebook Baseline Sample (n=100)</option>
+            <option value="srs">Simple Random Sampling (SRS)</option>
+            <option value="systematic">Systematic Sampling (Interval k)</option>
+            <option value="stratified">Stratified Sampling (Proportional)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="ctrl-sample-size">
+            <i class="fa-solid fa-users"></i> Sample Size (n): <span id="val-sample-size" class="badge-number">100</span>
+          </label>
+          <input type="range" id="ctrl-sample-size" min="10" max="1000" step="10" value="100" class="form-range">
+          <div class="range-labels">
+            <span>10</span>
+            <span>100</span>
+            <span>500</span>
+            <span>1000</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="ctrl-seed">
+            <i class="fa-solid fa-dice"></i> Random Seed
+          </label>
+          <div class="input-with-button">
+            <input type="number" id="ctrl-seed" value="42" class="form-input" placeholder="e.g. 42">
+            <button class="btn btn-icon" id="btn-dice-seed" title="Randomize Seed">
+              <i class="fa-solid fa-shuffle"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="ctrl-threshold">
+            <i class="fa-solid fa-clock-rotate-left"></i> Wait Threshold: <span id="val-threshold" class="badge-number">60 min</span>
+          </label>
+          <input type="range" id="ctrl-threshold" min="15" max="180" step="5" value="60" class="form-range">
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="ctrl-bootstrap-iters">
+            <i class="fa-solid fa-repeat"></i> Bootstrap Iterations
+          </label>
+          <select id="ctrl-bootstrap-iters" class="form-select">
+            <option value="500">500 Iterations</option>
+            <option value="1000" selected>1,000 Iterations (Recommended)</option>
+            <option value="5000">5,000 Iterations</option>
+            <option value="10000">10,000 Iterations</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="ctrl-group-var">
+            <i class="fa-solid fa-layer-group"></i> Group Variable
+          </label>
+          <select id="ctrl-group-var" class="form-select">
+            <option value="SEX_LABEL" selected>Patient Sex (Female vs Male)</option>
+            <option value="DAY_OF_WEEK">Day of Week (Sun - Sat)</option>
+            <option value="AGE_GROUP">Age Group (Pediatric, Adult, Senior)</option>
+            <option value="TRIAGE_CATEGORY">Triage Urgency (Emergency Level)</option>
+            <option value="ARRIVAL_MODE">Arrival Mode (Ambulance vs Walk-in)</option>
+          </select>
+        </div>
+
+        <div class="sidebar-actions">
+          <button class="btn btn-primary btn-block" id="btn-apply-sampling">
+            <i class="fa-solid fa-bolt"></i> Run Sampling Lab
+          </button>
+          <button class="btn btn-danger-outline btn-block" id="btn-reset-analysis">
+            <i class="fa-solid fa-arrow-rotate-left"></i> Reset to Notebook Baseline
+          </button>
+        </div>
+
+        <div class="sidebar-footer-info">
+          <small><i class="fa-solid fa-shield-halved"></i> Preserves exact 2022 NHAMCS calculations without synthetic data.</small>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN SCROLLABLE DASHBOARD VIEW -->
+    <main class="main-content">
+
+      <!-- SECTION 14: IMPORTANT DATA DISCLAIMER -->
+      <section class="disclaimer-banner">
+        <div class="disclaimer-icon">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div class="disclaimer-content">
+          <strong>Academic & Statistical Methodology Notice:</strong>
+          <span>NHAMCS is a complex probability survey. In this student project, the cleaned 2022 emergency department records (N = 13,272 valid observations from 16,025 total records) are treated as an empirical <strong>working population</strong> to demonstrate sampling design and statistical estimation. Official CDC national estimates require complex-survey cluster weights. Results presented here represent project methodology calculations.</span>
+        </div>
+      </section>
+
+      <!-- SECTION 1: LANDING / HERO SECTION -->
+      <section class="hero-section" id="hero">
+        <div class="hero-header">
+          <div class="hero-badge">
+            <i class="fa-solid fa-chart-line"></i> Operational Research & Biostatistics
+          </div>
+          <h1 class="hero-title">Hospital WaitTime Analytics</h1>
+          <p class="hero-subtitle">
+            "Understanding Emergency Department Waiting Times Through Sampling, Estimation and Statistical Analysis"
+          </p>
+          <div class="hero-buttons">
+            <a href="#executive-dashboard" class="btn btn-primary btn-lg">
+              <i class="fa-solid fa-gauge-high"></i> Explore Dashboard
+            </a>
+            <a href="#methodology" class="btn btn-secondary btn-lg">
+              <i class="fa-solid fa-diagram-project"></i> View Statistical Methodology
+            </a>
+          </div>
+        </div>
+
+        <!-- Visual representation pipeline -->
+        <div class="workflow-card">
+          <div class="workflow-title">
+            <i class="fa-solid fa-arrows-split-up-and-left text-teal"></i> End-to-End Operational Pipeline
+          </div>
+          <div class="workflow-steps">
+            <div class="workflow-step">
+              <div class="step-icon"><i class="fa-solid fa-hospital"></i></div>
+              <div class="step-label">1. Hospital</div>
+              <div class="step-sub">Emergency Dept</div>
+            </div>
+            <div class="workflow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+            <div class="workflow-step">
+              <div class="step-icon"><i class="fa-solid fa-users"></i></div>
+              <div class="step-label">2. Patients</div>
+              <div class="step-sub">16,025 Visits</div>
+            </div>
+            <div class="workflow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+            <div class="workflow-step">
+              <div class="step-icon"><i class="fa-solid fa-stopwatch"></i></div>
+              <div class="step-label">3. Waiting Time</div>
+              <div class="step-sub"><code>WAITTIME</code> (min)</div>
+            </div>
+            <div class="workflow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+            <div class="workflow-step active-step">
+              <div class="step-icon"><i class="fa-solid fa-filter"></i></div>
+              <div class="step-label">4. Sampling</div>
+              <div class="step-sub">SRS / Stratified / Syst.</div>
+            </div>
+            <div class="workflow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+            <div class="workflow-step">
+              <div class="step-icon"><i class="fa-solid fa-calculator"></i></div>
+              <div class="step-label">5. Estimation</div>
+              <div class="step-sub">CI & Bootstrap</div>
+            </div>
+            <div class="workflow-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+            <div class="workflow-step">
+              <div class="step-icon"><i class="fa-solid fa-user-doctor"></i></div>
+              <div class="step-label">6. Decision Making</div>
+              <div class="step-sub">Triage & Staffing</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: EXECUTIVE DASHBOARD (KPI CARDS) -->
+      <section class="section-container" id="executive-dashboard">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-gauge-high text-teal"></i> Executive Dashboard</h2>
+            <p class="section-desc">Key performance indicators from the 2022 NHAMCS Emergency Department cleaned working population vs. sample estimates.</p>
+          </div>
+          <div class="status-indicator">
+            <span class="status-dot"></span>
+            <span id="sample-mode-label">Notebook Baseline Sample Active</span>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <!-- Total Records -->
+          <div class="kpi-card">
+            <div class="kpi-icon text-blue"><i class="fa-solid fa-folder-open"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Total Survey Records</div>
+              <div class="kpi-value" id="kpi-total-raw">16,025</div>
+              <div class="kpi-sub">913 Survey Variables in CDC File</div>
+            </div>
+          </div>
+
+          <!-- Valid Records -->
+          <div class="kpi-card">
+            <div class="kpi-icon text-teal"><i class="fa-solid fa-check-circle"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Valid Waiting-Time Records</div>
+              <div class="kpi-value" id="kpi-valid-records">13,272</div>
+              <div class="kpi-sub">Removed -9 Blank (2,173) & -7 N/A (580)</div>
+            </div>
+          </div>
+
+          <!-- Population Mean -->
+          <div class="kpi-card highlight-blue">
+            <div class="kpi-icon text-indigo"><i class="fa-solid fa-chart-simple"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Working-Population Mean</div>
+              <div class="kpi-value" id="kpi-pop-mean">36.026 <span class="kpi-unit">min</span></div>
+              <div class="kpi-sub">True mean of 13,272 valid visits</div>
+            </div>
+          </div>
+
+          <!-- Sample Mean -->
+          <div class="kpi-card highlight-teal">
+            <div class="kpi-icon text-teal"><i class="fa-solid fa-crosshairs"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Sample Mean Estimate (<span id="kpi-sample-size-lbl">n=100</span>)</div>
+              <div class="kpi-value" id="kpi-sample-mean">35.38 <span class="kpi-unit">min</span></div>
+              <div class="kpi-sub">Point estimate of population mean</div>
+            </div>
+          </div>
+
+          <!-- Population Median -->
+          <div class="kpi-card">
+            <div class="kpi-icon text-amber"><i class="fa-solid fa-arrows-split-up-and-left"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Working-Population Median</div>
+              <div class="kpi-value" id="kpi-pop-median">14.0 <span class="kpi-unit">min</span></div>
+              <div class="kpi-sub">50th percentile of waiting times</div>
+            </div>
+          </div>
+
+          <!-- Sample Median Estimate -->
+          <div class="kpi-card">
+            <div class="kpi-icon text-amber"><i class="fa-solid fa-bullseye"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Sample Median Estimate</div>
+              <div class="kpi-value" id="kpi-sample-median">14.50 <span class="kpi-unit">min</span></div>
+              <div class="kpi-sub">Robust location parameter</div>
+            </div>
+          </div>
+
+          <!-- Long Wait Proportion (Population) -->
+          <div class="kpi-card highlight-red">
+            <div class="kpi-icon text-rose"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Pop. Proportion Waiting >60m</div>
+              <div class="kpi-value" id="kpi-pop-p60">16.1% <span class="kpi-unit">(0.161)</span></div>
+              <div class="kpi-sub">2,143 of 13,272 valid visits</div>
+            </div>
+          </div>
+
+          <!-- Long Wait Proportion (Sample) -->
+          <div class="kpi-card">
+            <div class="kpi-icon text-rose"><i class="fa-solid fa-percent"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Sample Proportion >60m</div>
+              <div class="kpi-value" id="kpi-sample-p60">16.0% <span class="kpi-unit">(0.160)</span></div>
+              <div class="kpi-sub">Sample proportion estimate</div>
+            </div>
+          </div>
+
+          <!-- 95% Confidence Interval for Mean -->
+          <div class="kpi-card wide-kpi">
+            <div class="kpi-icon text-emerald"><i class="fa-solid fa-arrows-left-right-to-line"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">95% Confidence Interval for Mean (Normal / t-distribution)</div>
+              <div class="kpi-value" id="kpi-ci-mean">22.74 – 48.02 <span class="kpi-unit">min</span></div>
+              <div class="kpi-sub">Range of plausible values (Sample Mean 35.38 ± 12.64 margin of error)</div>
+            </div>
+          </div>
+
+          <!-- 95% Confidence Interval for Median (Bootstrap) -->
+          <div class="kpi-card">
+            <div class="kpi-icon text-violet"><i class="fa-solid fa-chart-gantt"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">95% Bootstrap Median CI</div>
+              <div class="kpi-value" id="kpi-ci-median">12.00 – 23.00 <span class="kpi-unit">min</span></div>
+              <div class="kpi-sub">Resampling percentile interval</div>
+            </div>
+          </div>
+
+          <!-- 95% Wilson Proportion Interval -->
+          <div class="kpi-card">
+            <div class="kpi-icon text-cyan"><i class="fa-solid fa-square-root-variable"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">95% Wilson Proportion CI (>60m)</div>
+              <div class="kpi-value" id="kpi-ci-wilson">0.101 – 0.244 <span class="kpi-unit">(10.1%–24.4%)</span></div>
+              <div class="kpi-sub">Asymmetric score interval for proportions</div>
+            </div>
+          </div>
+
+          <!-- Max Wait Time -->
+          <div class="kpi-card">
+            <div class="kpi-icon text-red"><i class="fa-solid fa-skull-crossbones"></i></div>
+            <div class="kpi-details">
+              <div class="kpi-label">Max Recorded Wait Time</div>
+              <div class="kpi-value" id="kpi-pop-max">1,280 <span class="kpi-unit">min</span></div>
+              <div class="kpi-sub">Extreme outlier visit (~21.3 hours)</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: WAITING-TIME ANALYSIS -->
+      <section class="section-container" id="waittime-analysis">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-chart-column text-teal"></i> Waiting-Time Distribution Analysis</h2>
+            <p class="section-desc">Empirical shape, skewness, quartiles, and clinical waiting-time category breakdown of <code>WAITTIME</code>.</p>
+          </div>
+          <div class="chart-controls">
+            <label for="hist-bins-input"><i class="fa-solid fa-bars-staggered"></i> Histogram Bins:</label>
+            <input type="range" id="hist-bins-input" min="15" max="80" value="40" class="mini-range">
+            <span id="hist-bins-val" class="badge-number">40</span>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <!-- Histogram Chart -->
+          <div class="chart-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-chart-area text-blue"></i> Waiting-Time Histogram (Right-Skewed Distribution)</span>
+              <span class="badge badge-info">Hover, Zoom & Pan enabled</span>
+            </div>
+            <div id="chart-histogram" class="plotly-container"></div>
+            <div class="chart-annotation">
+              <i class="fa-solid fa-circle-info"></i> Notice heavy positive skewness: <strong>Median (14.0m)</strong> is substantially lower than <strong>Mean (36.03m)</strong> due to extended wait outliers.
+            </div>
+          </div>
+
+          <!-- Box Plot Chart -->
+          <div class="chart-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-box-archive text-teal"></i> Five-Number Summary & Outlier Box Plot</span>
+              <span class="badge badge-outline">IQR & Quartiles</span>
+            </div>
+            <div id="chart-boxplot" class="plotly-container"></div>
+            <div class="chart-annotation">
+              <i class="fa-solid fa-circle-info"></i> Interquartile Range (IQR): <strong>Q1 = 6.0m</strong>, <strong>Median = 14.0m</strong>, <strong>Q3 = 38.0m</strong>. Extreme values stretch to 1,280 mins.
+            </div>
+          </div>
+        </div>
+
+        <!-- Waiting-Time Categories Cards -->
+        <div class="categories-container">
+          <div class="categories-title">
+            <i class="fa-solid fa-tags text-teal"></i> Waiting-Time Clinical Operational Categories
+          </div>
+          <div class="category-cards-grid" id="category-cards-grid">
+            <!-- Dynamically injected -->
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4 & 5: SAMPLING LAB & ESTIMATION -->
+      <section class="section-container" id="sampling-lab">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-flask-vial text-teal"></i> Interactive Sampling & Estimation Lab</h2>
+            <p class="section-desc">Generate samples using Simple Random, Systematic, or Stratified methods and observe point estimates and confidence intervals in real-time.</p>
+          </div>
+          <div class="actions-group">
+            <button class="btn btn-primary" id="btn-run-lab">
+              <i class="fa-solid fa-play"></i> Generate Sample
+            </button>
+            <button class="btn btn-outline" id="btn-reset-lab">
+              <i class="fa-solid fa-rotate-left"></i> Baseline Sample
+            </button>
+          </div>
+        </div>
+
+        <div class="lab-dashboard-grid">
+          <!-- Sampling Lab Control & Metrics Card -->
+          <div class="lab-card">
+            <div class="lab-card-header">
+              <i class="fa-solid fa-calculator text-blue"></i> Sample Statistics & Estimation Errors
+            </div>
+            <div class="metrics-table-wrapper">
+              <table class="data-table">
+                <tbody>
+                  <tr>
+                    <th><i class="fa-solid fa-vial"></i> Sampling Method</th>
+                    <td id="lab-method-val">Baseline / Simple Random Sampling</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fa-solid fa-users"></i> Sample Size (n)</th>
+                    <td id="lab-n-val" class="fw-bold">100</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fa-solid fa-bullseye"></i> Sample Mean (x̄)</th>
+                    <td id="lab-mean-val" class="fw-bold text-teal">35.38 min</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fa-solid fa-crosshairs"></i> Sample Median</th>
+                    <td id="lab-median-val">14.50 min</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fa-solid fa-arrows-split-up-and-left"></i> Sample Std Dev (s)</th>
+                    <td id="lab-std-val">64.48 min</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fa-solid fa-arrow-down-up-across-line"></i> Standard Error (SE = s / √n)</th>
+                    <td id="lab-se-val">6.45 min</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fa-solid fa-minus"></i> Diff from Pop Mean (x̄ - μ)</th>
+                    <td id="lab-diff-val">-0.646 min</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fa-solid fa-scale-balanced"></i> Absolute Estimation Error |x̄ - μ|</th>
+                    <td id="lab-abs-err-val" class="fw-bold">0.646 min</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fa-solid fa-percent"></i> Relative Error (%)</th>
+                    <td id="lab-rel-err-val">1.79%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Point Estimate & 95% Confidence Interval Card (Section 5) -->
+            <div class="estimation-banner">
+              <div class="est-title"><i class="fa-solid fa-scale-unbalanced text-teal"></i> Point Estimate & 95% Confidence Interval</div>
+              <div class="est-interval-visual">
+                <div class="est-bound lower">
+                  <span class="est-lbl">Lower Bound</span>
+                  <span class="est-val" id="est-ci-lower">22.74 min</span>
+                </div>
+                <div class="est-arrow-line">
+                  <div class="est-point">
+                    <span class="point-marker"></span>
+                    <span class="point-lbl" id="est-point-val">Estimate: 35.38 min</span>
+                  </div>
+                </div>
+                <div class="est-bound upper">
+                  <span class="est-lbl">Upper Bound</span>
+                  <span class="est-val" id="est-ci-upper">48.02 min</span>
+                </div>
+              </div>
+              <div class="est-explanation">
+                <i class="fa-solid fa-quote-left"></i> "A confidence interval gives a range of plausible values for the population mean under the assumptions of the chosen estimation procedure."
+                <div class="stat-caveat">Note: An individual 95% confidence interval either contains or does not contain the true parameter; it does not guarantee certainty for any single observed sample.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sample Table Viewer -->
+          <div class="lab-card">
+            <div class="lab-card-header">
+              <span><i class="fa-solid fa-table text-indigo"></i> Selected Sample Records (<span id="sample-count-badge">100</span> rows)</span>
+              <span class="badge badge-outline">First 100 observations</span>
+            </div>
+            <div class="table-scroll-container">
+              <table class="sample-records-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>WAITTIME (min)</th>
+                    <th>Age</th>
+                    <th>Sex</th>
+                    <th>Day of Week</th>
+                    <th>Triage Category</th>
+                    <th>Arrival</th>
+                  </tr>
+                </thead>
+                <tbody id="sample-records-tbody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 6: CENTRAL LIMIT THEOREM -->
+      <section class="section-container" id="clt-section">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-atom text-teal"></i> Central Limit Theorem (CLT) Interactive Simulator</h2>
+            <p class="section-desc">Demonstrating that as sample size increases, the distribution of sample means approaches normality, regardless of population skewness.</p>
+          </div>
+          <div class="clt-controls-bar">
+            <span>Select Sample Size (n):</span>
+            <div class="btn-group" id="clt-n-buttons">
+              <button class="btn btn-outline btn-sm clt-btn" data-n="10">n = 10</button>
+              <button class="btn btn-primary btn-sm clt-btn" data-n="30">n = 30</button>
+              <button class="btn btn-outline btn-sm clt-btn" data-n="50">n = 50</button>
+              <button class="btn btn-outline btn-sm clt-btn" data-n="100">n = 100</button>
+              <button class="btn btn-outline btn-sm clt-btn" data-n="200">n = 200</button>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-re-simulate-clt">
+              <i class="fa-solid fa-arrows-rotate"></i> Re-Sample (1,000 Draws)
+            </button>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <!-- Left Chart: Individual Waiting Times (Skewed) -->
+          <div class="chart-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-chart-line text-rose"></i> Population / Individual Waiting Times</span>
+              <span class="badge badge-danger">Severe Positive Skewness</span>
+            </div>
+            <div id="chart-clt-individual" class="plotly-container"></div>
+            <div class="chart-annotation">
+              Individual patients arrive with wide variability and high positive skewness (many 0–20m, occasional 200m+).
+            </div>
+          </div>
+
+          <!-- Right Chart: Distribution of Repeated Sample Means -->
+          <div class="chart-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-bell text-emerald"></i> Distribution of Repeated Sample Means (n = <span id="clt-cur-n">30</span>)</span>
+              <span class="badge badge-success">Approximately Normal Bell Curve</span>
+            </div>
+            <div id="chart-clt-means" class="plotly-container"></div>
+            <div class="chart-annotation">
+              Mean of Means: <strong id="clt-mean-val">36.03m</strong> | Empirical SE: <strong id="clt-emp-se">11.8m</strong> | Theoretical SE (σ/√n): <strong id="clt-theor-se">11.7m</strong>.
+            </div>
+          </div>
+        </div>
+
+        <div class="clt-explanation-box">
+          <div class="clt-box-title"><i class="fa-solid fa-graduation-cap text-teal"></i> Statistical Principle: Central Limit Theorem in Hospital Analytics</div>
+          <p>
+            Even though emergency room waiting time distributions are severely right-skewed and non-normal, the <strong>sampling distribution of the mean</strong> becomes approximately normal as sample size $n$ increases ($n \ge 30$). Furthermore, the standard error decreases at a rate proportional to $1/\sqrt{n}$, meaning quadrupling sample size cuts estimation uncertainty by half.
+          </p>
+        </div>
+      </section>
+
+      <!-- SECTION 7: BOOTSTRAP ANALYSIS -->
+      <section class="section-container" id="bootstrap-section">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-shoe-prints text-teal"></i> Nonparametric Bootstrap Resampling</h2>
+            <p class="section-desc">Quantify estimation uncertainty for parameters like the median or mean without making parametric normality assumptions.</p>
+          </div>
+          <div class="bootstrap-controls-bar">
+            <div class="control-item">
+              <label for="boot-stat-select">Statistic:</label>
+              <select id="boot-stat-select" class="form-select-sm">
+                <option value="mean">Mean Waiting Time</option>
+                <option value="median" selected>Median Waiting Time</option>
+              </select>
+            </div>
+            <div class="control-item">
+              <label for="boot-iters-select">Iterations:</label>
+              <select id="boot-iters-select" class="form-select-sm">
+                <option value="500">500 Iterations</option>
+                <option value="1000" selected>1,000 Iterations</option>
+                <option value="5000">5,000 Iterations</option>
+                <option value="10000">10,000 Iterations</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-run-bootstrap">
+              <i class="fa-solid fa-play"></i> Run Bootstrap Simulation
+            </button>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <!-- Bootstrap Distribution Chart -->
+          <div class="chart-panel wide-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-chart-simple text-indigo"></i> Bootstrap Distribution with 95% Percentile Confidence Interval</span>
+              <span class="badge badge-info" id="boot-status-badge">1,000 Resamples</span>
+            </div>
+            <div id="chart-bootstrap" class="plotly-container"></div>
+            <div class="chart-annotation" id="boot-result-annotation">
+              Bootstrap Point Estimate: <strong>14.50m</strong> | 95% Bootstrap Percentile Interval: <strong>[12.00m, 23.00m]</strong>.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 8: LONG-WAIT ANALYSIS (>60 MIN) -->
+      <section class="section-container" id="long-wait-section">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-clock text-rose"></i> "How Many Patients Wait More Than 60 Minutes?"</h2>
+            <p class="section-desc">Interactive threshold monitoring for identifying service bottlenecks and clinical delays in the emergency department.</p>
+          </div>
+          <div class="threshold-slider-group">
+            <label for="long-wait-slider">Waiting Threshold:</label>
+            <input type="range" id="long-wait-slider" min="15" max="180" step="5" value="60" class="form-range">
+            <span class="badge-number" id="long-wait-threshold-lbl">60 min</span>
+          </div>
+        </div>
+
+        <div class="long-wait-grid">
+          <!-- Big Percentage Card -->
+          <div class="big-stat-card">
+            <div class="big-stat-title">Proportion Exceeding <span class="threshold-insert">60</span> Minutes</div>
+            <div class="big-stat-number" id="long-wait-pct">16.1%</div>
+            <div class="big-stat-sub">
+              <strong><span id="long-wait-count">2,143</span></strong> of <strong><span id="long-wait-total">13,272</span></strong> valid patients waited longer than <span class="threshold-insert">60</span> minutes
+            </div>
+            <div class="big-stat-ci">
+              <i class="fa-solid fa-arrows-left-right"></i> 95% Wilson Confidence Interval: <strong id="long-wait-wilson">[10.1%, 24.4%]</strong> (Sample estimate)
+            </div>
+          </div>
+
+          <!-- Donut / Pie Chart -->
+          <div class="chart-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-chart-pie text-teal"></i> Patient Split: Within vs Exceeding Threshold</span>
+            </div>
+            <div id="chart-long-wait-donut" class="plotly-container"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 9: GROUP COMPARISON -->
+      <section class="section-container" id="group-comparison">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-people-group text-teal"></i> Waiting Time Across Groups</h2>
+            <p class="section-desc">Comparing ED arrival dynamics across verified NHAMCS demographic and operational categories.</p>
+          </div>
+          <div class="group-select-group">
+            <label for="group-comparison-select">Compare by Variable:</label>
+            <select id="group-comparison-select" class="form-select">
+              <option value="SEX_LABEL" selected>Patient Sex (Female vs Male)</option>
+              <option value="DAY_OF_WEEK">Day of the Week (Mon - Sun)</option>
+              <option value="AGE_GROUP">Age Group (Pediatric, Adult, Senior)</option>
+              <option value="TRIAGE_CATEGORY">Triage Urgency Category</option>
+              <option value="ARRIVAL_MODE">Arrival Mode (Ambulance vs Walk-in)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Descriptive Group Table -->
+        <div class="group-table-card">
+          <div class="card-subtitle"><i class="fa-solid fa-table-list text-blue"></i> Group Breakdown & Descriptive Statistics</div>
+          <div class="table-responsive">
+            <table class="data-table" id="group-stats-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Sample Size (N)</th>
+                  <th>Mean Wait (min)</th>
+                  <th>Median Wait (min)</th>
+                  <th>Std Deviation (min)</th>
+                  <th>IQR (Q3 - Q1)</th>
+                </tr>
+              </thead>
+              <tbody id="group-stats-tbody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <!-- Group Bar Chart -->
+          <div class="chart-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-chart-bar text-teal"></i> Mean & Median Comparison by Group</span>
+            </div>
+            <div id="chart-group-bar" class="plotly-container"></div>
+          </div>
+
+          <!-- Group Box Plot -->
+          <div class="chart-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-box-archive text-indigo"></i> Waiting-Time Distributions by Group</span>
+            </div>
+            <div id="chart-group-box" class="plotly-container"></div>
+          </div>
+        </div>
+
+        <div class="causation-notice">
+          <i class="fa-solid fa-circle-exclamation text-amber"></i>
+          <span><strong>Important Methodological Caution:</strong> These group comparisons represent descriptive statistical associations within observational survey data and <strong>should not be interpreted as proof of causation</strong>. Differences may be confounded by patient acuity, hospital case mix, or time of day.</span>
+        </div>
+      </section>
+
+      <!-- SECTION 10: SAMPLE SIZE VS ACCURACY -->
+      <section class="section-container" id="accuracy-curve">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-arrow-trend-down text-teal"></i> Sample Size vs. Estimation Error</h2>
+            <p class="section-desc">Empirical simulation showing how estimation accuracy scales with sample size according to the square-root law ($1/\sqrt{n}$).</p>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-panel wide-panel">
+            <div class="chart-title">
+              <span><i class="fa-solid fa-chart-line text-blue"></i> Sample Size ($n$) vs. Absolute Error of Sample Mean $| \bar{x} - \mu |$</span>
+              <span class="badge badge-primary">Empirical vs Theoretical Error Curve</span>
+            </div>
+            <div id="chart-error-curve" class="plotly-container"></div>
+            <div class="chart-annotation">
+              <i class="fa-solid fa-circle-info"></i> "Larger samples generally provide more precise estimates, although the exact error varies because of random sampling." Note the diminishing marginal returns beyond $n = 200$.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 11: SUMMARY TABLE -->
+      <section class="section-container" id="summary-table-section">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-clipboard-check text-teal"></i> Statistical Summary & Hypothesis Benchmark Table</h2>
+            <p class="section-desc">Comparison of population parameters against sample point estimates and confidence intervals reproducing project calculations.</p>
+          </div>
+        </div>
+
+        <div class="summary-table-container">
+          <table class="benchmark-table">
+            <thead>
+              <tr>
+                <th>Quantity / Metric</th>
+                <th>Working Population ($N = 13,272$)</th>
+                <th>Sample Estimate ($n = 100$)</th>
+                <th>95% Confidence Interval</th>
+                <th>Estimation Method</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Mean Waiting Time</strong></td>
+                <td><span class="badge-pop">36.026 min</span></td>
+                <td><span class="badge-sample">35.38 min</span></td>
+                <td><span class="badge-ci">22.74 – 48.02 min</span></td>
+                <td>Student's $t$ / Normal Error Theory</td>
+              </tr>
+              <tr>
+                <td><strong>Median Waiting Time</strong></td>
+                <td><span class="badge-pop">14.00 min</span></td>
+                <td><span class="badge-sample">14.50 min</span></td>
+                <td><span class="badge-ci">12.00 – 23.00 min</span></td>
+                <td>Nonparametric Bootstrap (Percentile)</td>
+              </tr>
+              <tr>
+                <td><strong>Proportion Waiting >60 Minutes</strong></td>
+                <td><span class="badge-pop">0.161 (16.1%)</span></td>
+                <td><span class="badge-sample">0.160 (16.0%)</span></td>
+                <td><span class="badge-ci">0.101 – 0.244 (10.1%–24.4%)</span></td>
+                <td>Wilson Score Interval for Proportions</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 12: METHODOLOGY TIMELINE -->
+      <section class="section-container" id="methodology">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-diagram-project text-teal"></i> Project Methodology Architecture</h2>
+            <p class="section-desc">The 9-stage scientific framework implemented in the Google Colab analytical pipeline.</p>
+          </div>
+        </div>
+
+        <div class="timeline-container">
+          <div class="timeline-step">
+            <div class="t-badge">1</div>
+            <div class="t-content">
+              <h4>1. Data Collection</h4>
+              <p>Official 2022 NHAMCS Emergency Department public-use microdata from CDC/NCHS (16,025 records, 913 variables).</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="t-badge">2</div>
+            <div class="t-content">
+              <h4>2. Data Cleaning & Validation</h4>
+              <p>Filtered non-numeric missing codes (-9: Blank, -7: Not Applicable). Retained only valid documented minutes.</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="t-badge">3</div>
+            <div class="t-content">
+              <h4>3. Working Population Definition</h4>
+              <p>Cleaned dataset of $N = 13,272$ valid patient visits established as the project working population ($\mu = 36.026$m, Median = 14m).</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="t-badge">4</div>
+            <div class="t-content">
+              <h4>4. Probability Sampling Designs</h4>
+              <p>Implemented Simple Random Sampling (SRS), Systematic Sampling ($k = N/n$), and Stratified Sampling by acuity/demographics.</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="t-badge">5</div>
+            <div class="t-content">
+              <h4>5. Statistical Point Estimation</h4>
+              <p>Evaluated sample mean ($\bar{x} = 35.38$m), sample median (14.50m), and sample long-wait proportion ($\hat{p} = 0.160$).</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="t-badge">6</div>
+            <div class="t-content">
+              <h4>6. Confidence Interval Construction</h4>
+              <p>Quantified parametric estimation uncertainty using $t$-distribution and Wilson score intervals for proportion metrics.</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="t-badge">7</div>
+            <div class="t-content">
+              <h4>7. Nonparametric Bootstrap Simulation</h4>
+              <p>Resampled $B = 1,000$ to $10,000$ bootstrap iterations to calculate robust percentile confidence intervals for the median.</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="t-badge">8</div>
+            <div class="t-content">
+              <h4>8. Statistical Interpretation & CLT</h4>
+              <p>Verified Central Limit Theorem convergence and empirical error decay across variable sample sizes ($n = 10 \to 500$).</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="t-badge">9</div>
+            <div class="t-content">
+              <h4>9. Hospital Operational Decision Support</h4>
+              <p>Derived actionable evidence-based triage and staffing policies to reduce extreme emergency room delays.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 13: HOSPITAL INSIGHTS -->
+      <section class="section-container" id="hospital-insights">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-hospital-user text-teal"></i> Hospital Operational Decision Support</h2>
+            <p class="section-desc">Translating statistical findings into pragmatic hospital administration recommendations.</p>
+          </div>
+        </div>
+
+        <div class="insights-grid">
+          <div class="insight-card">
+            <div class="insight-icon text-blue"><i class="fa-solid fa-calendar-week"></i></div>
+            <h4>Peak Period Monitoring & Load Balancing</h4>
+            <p>Data indicates higher waiting times on Wednesdays and Tuesdays (mean 40.1m and 38.3m) versus weekends (Saturday mean 31.5m). Hospitals should anticipate midweek admission surges and adjust triage throughput.</p>
+            <div class="insight-tag">Possible Operational Response</div>
+          </div>
+
+          <div class="insight-card">
+            <div class="insight-icon text-emerald"><i class="fa-solid fa-user-nurse"></i></div>
+            <h4>Dynamic Provider & Nursing Allocation</h4>
+            <p>Rather than uniform staffing, align emergency physician and physician assistant shift schedules with hourly and day-of-week arrival curves to mitigate bottleneck development before queues cascade.</p>
+            <div class="insight-tag">Possible Operational Response</div>
+          </div>
+
+          <div class="insight-card">
+            <div class="insight-icon text-amber"><i class="fa-solid fa-forward-fast"></i></div>
+            <h4>Low-Acuity Fast-Track Pathways</h4>
+            <p>Patients waiting over 60 minutes represent 16.1% of visits. Directing low-acuity semi-urgent and non-urgent cases to a dedicated minor-illness fast-track team preserves acute resuscitation capacity.</p>
+            <div class="insight-tag">Possible Operational Response</div>
+          </div>
+
+          <div class="insight-card">
+            <div class="insight-icon text-rose"><i class="fa-solid fa-bell-concierge"></i></div>
+            <h4>Active Triage Re-Evaluation Protocols</h4>
+            <p>Given the heavy right-tail outliers (up to 1,280 minutes), implement automated electronic health record alerts for any patient remaining in the waiting area beyond 45 minutes to trigger secondary nursing review.</p>
+            <div class="insight-tag">Possible Operational Response</div>
+          </div>
+
+          <div class="insight-card">
+            <div class="insight-icon text-indigo"><i class="fa-solid fa-square-poll-vertical"></i></div>
+            <h4>Continuous Sample-Based Quality Audits</h4>
+            <p>As demonstrated by our sampling lab, regular representative audits of $n = 100$ to $200$ cases allow quality managers to estimate mean waiting times with high accuracy (low relative error) without auditing millions of raw logs.</p>
+            <div class="insight-tag">Possible Operational Response</div>
+          </div>
+
+          <div class="insight-card">
+            <div class="insight-icon text-cyan"><i class="fa-solid fa-chart-line"></i></div>
+            <h4>Threshold Management Over Mean Averages</h4>
+            <p>Because the mean is inflated by extreme outliers, hospital KPIs should track both median waiting time (14 min) and the proportion exceeding target thresholds (>60 min: 16.1%) for meaningful operational feedback.</p>
+            <div class="insight-tag">Possible Operational Response</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 15: DATA EXPLORER -->
+      <section class="section-container" id="data-explorer">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title"><i class="fa-solid fa-database text-teal"></i> Working Population Data Explorer</h2>
+            <p class="section-desc">Search, filter, and inspect cleaned 2022 NHAMCS records or export filtered subsets as CSV.</p>
+          </div>
+          <div class="explorer-actions">
+            <a href="/api/export_csv" class="btn btn-secondary btn-sm" id="btn-export-csv" download>
+              <i class="fa-solid fa-download"></i> Download Full Clean CSV (13,272 Rows)
+            </a>
+          </div>
+        </div>
+
+        <div class="explorer-filter-bar">
+          <div class="search-input-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="explorer-search" class="form-input" placeholder="Search by Sex, Day, Triage, Arrival Mode, or Wait Time...">
+          </div>
+          <div class="page-size-wrap">
+            <label for="explorer-page-size">Rows per page:</label>
+            <select id="explorer-page-size" class="form-select-sm">
+              <option value="15">15</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="explorer-table" id="explorer-data-table">
+            <thead>
+              <tr>
+                <th data-col="WAITTIME">WAITTIME (min) <i class="fa-solid fa-sort"></i></th>
+                <th data-col="AGE">Age <i class="fa-solid fa-sort"></i></th>
+                <th data-col="SEX_LABEL">Sex <i class="fa-solid fa-sort"></i></th>
+                <th data-col="DAY_OF_WEEK">Day of Week <i class="fa-solid fa-sort"></i></th>
+                <th data-col="TRIAGE_CATEGORY">Triage Acuity <i class="fa-solid fa-sort"></i></th>
+                <th data-col="ARRIVAL_MODE">Arrival Mode <i class="fa-solid fa-sort"></i></th>
+                <th data-col="AGE_GROUP">Age Cohort <i class="fa-solid fa-sort"></i></th>
+                <th data-col="MONTH">Month <i class="fa-solid fa-sort"></i></th>
+              </tr>
+            </thead>
+            <tbody id="explorer-tbody">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar">
+          <div class="pagination-info" id="pagination-info">Showing 1 to 25 of 13,272 records</div>
+          <div class="pagination-controls">
+            <button class="btn btn-outline btn-sm" id="btn-prev-page" disabled>
+              <i class="fa-solid fa-chevron-left"></i> Previous
+            </button>
+            <span class="page-number-display" id="page-display">Page 1 of 531</span>
+            <button class="btn btn-outline btn-sm" id="btn-next-page">
+              Next <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 23: PROJECT INFORMATION FOOTER -->
+      <footer class="app-footer">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <div class="footer-brand">Hospital WaitTime Analytics</div>
+            <p>College Project: <strong>LG-6</strong></p>
+            <p>Topic: <strong>Reducing Hospital Waiting Time Using Sampling and Statistical Estimation</strong></p>
+          </div>
+          <div class="footer-col">
+            <h4>Data Source & Standards</h4>
+            <p>Dataset: <strong>2022 NHAMCS Emergency Department Public-Use Data</strong></p>
+            <p>Source Agency: <strong>Centers for Disease Control and Prevention (CDC) / NCHS</strong></p>
+            <p>Primary Metric: <strong>WAITTIME (minutes to initial provider contact)</strong></p>
+          </div>
+          <div class="footer-col">
+            <h4>Technology Stack</h4>
+            <p>Python 3 • Pandas • NumPy • SciPy • Plotly.js • Flask • Modern Vanilla CSS</p>
+            <p>Google Colab Compatible • Zero Paid Dependencies</p>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>&copy; 2026 Academic Research Project LG-6 • Prepared for Viva & Technical Demonstration</span>
+        </div>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- PROJECT INFO MODAL -->
+  <div class="modal-overlay" id="project-modal" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-circle-info text-teal"></i> Project LG-6 Information</h3>
+        <button class="modal-close-btn" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-info-item">
+          <strong>Project Code:</strong> <span>LG-6</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Topic:</strong> <span>Reducing Hospital Waiting Time Using Sampling and Statistical Estimation</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Dataset:</strong> <span>2022 NHAMCS Emergency Department (ED) Public-Use Microdata</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Source:</strong> <span>CDC / National Center for Health Statistics (NCHS)</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Main Variable:</strong> <span><code>WAITTIME</code> (Time in minutes to first provider contact)</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Total Records:</strong> <span>16,025 Patient Record Forms across 913 survey columns</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Cleaned Working Population:</strong> <span>13,272 valid observations (excluded codes -9 Blank and -7 N/A)</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Verified Working Pop Mean:</strong> <span>36.026 minutes (Median: 14.0 min)</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Verified Baseline Sample Mean:</strong> <span>35.38 minutes (95% CI: 22.74 – 48.02 min)</span>
+        </div>
+        <div class="modal-info-item">
+          <strong>Technologies Used:</strong> <span>Python, Pandas, NumPy, SciPy, Plotly, Flask, HTML5, CSS3, JavaScript</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btn-modal-ok">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript App Logic -->
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
