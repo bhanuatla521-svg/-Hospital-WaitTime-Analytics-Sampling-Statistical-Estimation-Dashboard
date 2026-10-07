@@ -606,6 +606,19 @@ def reset_analysis():
     CURRENT_SAMPLE_DF = BASELINE_SAMPLE_DF.copy()
     return jsonify({"status": "success", "message": "Reset to verified baseline sample."})
 
+@app.route('/download-notebook')
+@app.route('/api/download-notebook')
+def download_notebook():
+    notebook_path = os.path.join(os.path.dirname(__file__), 'hospital_waittime_colab.ipynb')
+    if os.path.exists(notebook_path):
+        return send_file(
+            notebook_path,
+            as_attachment=True,
+            download_name='hospital_waittime_colab.ipynb',
+            mimetype='application/x-ipynb+json'
+        )
+    return jsonify({"error": "Notebook file not found"}), 404
+
 # Initialize data on startup
 load_or_prepare_data()
 

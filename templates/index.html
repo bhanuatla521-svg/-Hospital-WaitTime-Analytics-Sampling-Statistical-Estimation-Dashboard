@@ -42,7 +42,10 @@
     </div>
 
     <div class="nav-actions">
-      <button class="btn btn-secondary btn-sm" id="btn-open-sidebar" title="Toggle Controls Sidebar">
+      <a href="/download-notebook" class="btn btn-secondary btn-sm" download="hospital_waittime_colab.ipynb" title="Download Jupyter / Colab Notebook">
+        <i class="fa-solid fa-download"></i> <span>Download .ipynb</span>
+      </a>
+      <button class="btn btn-outline btn-sm" id="btn-open-sidebar" title="Toggle Controls Sidebar">
         <i class="fa-solid fa-sliders"></i> <span>Global Controls</span>
       </button>
       <button class="btn btn-outline btn-sm" id="btn-project-info" title="Project Details">
@@ -180,8 +183,11 @@
             <a href="#executive-dashboard" class="btn btn-primary btn-lg">
               <i class="fa-solid fa-gauge-high"></i> Explore Dashboard
             </a>
-            <a href="#methodology" class="btn btn-secondary btn-lg">
-              <i class="fa-solid fa-diagram-project"></i> View Statistical Methodology
+            <a href="/download-notebook" class="btn btn-secondary btn-lg" download="hospital_waittime_colab.ipynb">
+              <i class="fa-solid fa-file-arrow-down"></i> Download Notebook (.ipynb)
+            </a>
+            <a href="#methodology" class="btn btn-outline btn-lg text-white" style="border-color: rgba(255,255,255,0.3); color: #fff;">
+              <i class="fa-solid fa-diagram-project"></i> View Methodology
             </a>
           </div>
         </div>
